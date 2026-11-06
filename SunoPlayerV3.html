@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Suno AI SoundVault - Player & Library</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/bold/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.0.3/src/fill/style.css">
+  <!-- Inter & Orbitron Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            studio: {
+              950: '#090a0f',
+              900: '#0f121d',
+              850: '#141824',
+              800: '#1a1f32',
+              700: '#262d47',
+            },
+            suno: {
+              magenta: '#ff007a',
+              violet: '#7928ca',
+              cyan: '#00f2fe',
+              emerald: '#10b981',
+            }
+          },
+          boxShadow: {
+            'glow-magenta': '0 0 25px -5px rgba(255, 0, 122, 0.4)',
+            'glow-cyan': '0 0 25px -5px rgba(0, 242, 254, 0.3)',
+            'card-hover': '0 10px 30px -10px rgba(0, 0, 0, 0.7)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090a0f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #262d47;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #ff007a;
+    }
+    
+    .glass-panel {
+      background: rgba(20, 24, 36, 0.75);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    
+    .glass-card {
+      background: rgba(26, 31, 50, 0.65);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: all 0.25s ease-out;
+    }
+    
+    .glass-card:hover {
+      border-color: rgba(255, 0, 122, 0.35);
+      transform: translateY(-2px);
+    }
+
+    /* Embedded iframe responsiveness wrapper */
+    .suno-iframe-container {
+      position: relative;
+      width: 100%;
+      min-height: 152px;
+      background: #0a0c14;
+      border-radius: 0.75rem;
+      overflow: hidden;
+    }
+
+    .suno-iframe-container iframe {
+      width: 100%;
+      height: 100%;
+      min-height: 152px;
+      border: 0;
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-studio-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-suno-magenta selection:text-white">
+
+  <!-- Top App Navigation -->
+  <header class="glass-panel sticky top-0 z-40 border-b border-studio-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-suno-magenta to-suno-cyan flex items-center justify-center shadow-glow-magenta">
+        <i class="ph-bold ph-waveform text-white text-xl"></i>
+      </div>
+      <div>
+        <h1 class="font-display font-bold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent flex items-center gap-2">
+          SoundVault <span class="text-xs px-2 py-0.5 rounded-full font-sans font-medium uppercase tracking-wider bg-suno-magenta/20 text-suno-magenta border border-suno-magenta/30">Suno Embeds</span>
+        </h1>
+        <p class="text-xs text-slate-400 hidden sm:block">AI Music Player & Collection Dashboard</p>
+      </div>
+    </div>
+
+    <!-- Right Quick Actions -->
+    <div class="flex items-center space-x-2 sm:space-x-3">
+      <button id="quick-demo-btn" class="px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-studio-800/80 hover:bg-studio-700/80 border border-slate-700/60 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+        <i class="ph-bold ph-sparkle text-amber-400"></i>
+        <span>Load Demo Songs</span>
+      </button>
+
+      <button id="open-modal-btn" class="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-suno-magenta to-suno-violet hover:opacity-95 rounded-xl transition shadow-glow-magenta flex items-center gap-2">
+        <i class="ph-bold ph-plus-circle text-base"></i>
+        <span>Add Song</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- Hero Stats & Search Filters Bar -->
+    <div class="glass-panel rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-800/80">
+      <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+        
+        <!-- Search Input -->
+        <div class="relative flex-1">
+          <i class="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+          <input 
+            type="text" 
+            id="search-input"
+            placeholder="Search tracks by title, artist, genre, or notes..."
+            class="w-full bg-studio-900/90 text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-700/70 focus:outline-none focus:border-suno-magenta focus:ring-1 focus:ring-suno-magenta placeholder:text-slate-500 transition"
+          >
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <!-- Genre Dropdown Filter -->
+          <div class="relative">
+            <select id="genre-filter" class="appearance-none bg-studio-900/90 text-xs sm:text-sm px-3.5 py-2.5 pr-8 rounded-xl border border-slate-700/70 text-slate-200 focus:outline-none focus:border-suno-magenta transition cursor-pointer">
+              <option value="ALL">All Genres</option>
+              <option value="Cyberpunk / Synth">Cyberpunk / Synth</option>
+              <option value="Lo-Fi / Chill">Lo-Fi / Chill</option>
+              <option value="Rock / Metal">Rock / Metal</option>
+              <option value="EDM / Dance">EDM / Dance</option>
+              <option value="Pop / Acoustic">Pop / Acoustic</option>
+              <option value="Hip-Hop / R&B">Hip-Hop / R&B</option>
+              <option value="Cinematic / Ambient">Cinematic / Ambient</option>
+              <option value="Other">Other</option>
+            </select>
+            <i class="ph-bold ph-caret-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+          </div>
+
+          <!-- Favorites Filter Button -->
+          <button id="filter-favorites-btn" class="px-3.5 py-2.5 rounded-xl border border-slate-700/70 bg-studio-900/90 text-slate-300 hover:text-white text-xs sm:text-sm font-medium flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-heart text-slate-400" id="fav-filter-icon"></i>
+            <span>Favorites</span>
+          </button>
+
+          <!-- Sort Selector -->
+          <div class="relative">
+            <select id="sort-filter" class="appearance-none bg-studio-900/90 text-xs sm:text-sm px-3.5 py-2.5 pr-8 rounded-xl border border-slate-700/70 text-slate-200 focus:outline-none focus:border-suno-magenta transition cursor-pointer">
+              <option value="newest">Newest Added</option>
+              <option value="oldest">Oldest Added</option>
+              <option value="title">Alphabetical (A-Z)</option>
+            </select>
+            <i class="ph-bold ph-sort-ascending absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+          </div>
+
+          <!-- Clear Filters Button -->
+          <button id="clear-filters-btn" class="hidden px-2.5 py-2 text-xs text-suno-magenta hover:underline flex items-center gap-1">
+            <i class="ph-bold ph-x"></i> Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Ribbon -->
+      <div class="mt-4 pt-4 border-t border-slate-800/70 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-400">
+        <div class="flex items-center gap-4">
+          <span class="flex items-center gap-1.5">
+            <i class="ph-bold ph-music-notes text-suno-magenta"></i>
+            Total Tracks: <strong id="metric-total-tracks" class="text-white">0</strong>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i class="ph-fill ph-heart text-rose-500"></i>
+            Favorites: <strong id="metric-favorite-tracks" class="text-white">0</strong>
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-500 italic">
+          *Supports standard Suno song URLs & `&lt;iframe&gt;` embed codes
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State Prompt -->
+    <div id="empty-state" class="hidden flex flex-col items-center justify-center py-16 px-4 text-center glass-panel rounded-2xl border border-dashed border-slate-800">
+      <div class="h-16 w-16 rounded-2xl bg-studio-800 flex items-center justify-center text-slate-500 mb-4">
+        <i class="ph-bold ph-disc text-3xl"></i>
+      </div>
+      <h3 class="text-lg font-semibold text-white mb-1">No Suno tracks found</h3>
+      <p class="text-sm text-slate-400 max-w-sm mb-5">Paste your first Suno song HTML embed code or click below to load demo tracks.</p>
+      <div class="flex gap-3">
+        <button onclick="document.getElementById('open-modal-btn').click()" class="px-4 py-2 bg-suno-magenta text-white font-medium text-xs rounded-xl shadow-glow-magenta hover:brightness-110 transition">
+          Add Your Song
+        </button>
+        <button onclick="loadSampleTracks()" class="px-4 py-2 bg-studio-800 text-slate-300 font-medium text-xs rounded-xl hover:bg-studio-700 border border-slate-700 transition">
+          Load Demo Set
+        </button>
+      </div>
+    </div>
+
+    <!-- Library Grid -->
+    <div id="tracks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      <!-- Track Cards Injected Here via JavaScript -->
+    </div>
+  </main>
+
+  <!-- Add Track Modal -->
+  <div id="add-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden transition-opacity">
+    <div class="glass-panel w-full max-w-xl rounded-2xl p-6 sm:p-7 border border-slate-700 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      
+      <!-- Close Button -->
+      <button id="close-modal-btn" class="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-studio-800 transition">
+        <i class="ph-bold ph-x text-xl"></i>
+      </button>
+
+      <div class="flex items-center space-x-3 mb-5">
+        <div class="h-10 w-10 rounded-xl bg-suno-magenta/20 text-suno-magenta flex items-center justify-center border border-suno-magenta/30">
+          <i class="ph-bold ph-waveform-slash text-xl"></i>
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-white font-display">Add Suno AI Embed</h2>
+          <p class="text-xs text-slate-400">Embed full players straight from suno.com</p>
+        </div>
+      </div>
+
+      <form id="add-track-form" class="space-y-4">
+        <!-- Embed Code or URL Input -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Suno Embed Code or URL <span class="text-suno-magenta">*</span>
+            </label>
+            <button type="button" id="paste-sample-code" class="text-[11px] text-suno-cyan hover:underline">
+              Paste Sample Code
+            </button>
+          </div>
+          <textarea 
+            id="track-embed-input" 
+            required 
+            rows="3" 
+            placeholder="Paste <iframe ...></iframe> or https://suno.com/song/XXXX-XXXX..."
+            class="w-full bg-studio-950 font-mono text-xs text-slate-200 p-3 rounded-xl border border-slate-700 focus:outline-none focus:border-suno-magenta focus:ring-1 focus:ring-suno-magenta transition placeholder:text-slate-600"
+          ></textarea>
+          <p class="text-[11px] text-slate-400 mt-1">Accepts full HTML &lt;iframe&gt; code from Suno's "Embed" button or direct Suno song URL.</p>
+        </div>
+
+        <!-- Title -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            Song Title <span class="text-suno-magenta">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="track-title-input" 
+            required 
+            placeholder="e.g. Neon Cyberpunk Skyline"
+            class="w-full bg-studio-950 text-sm text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-suno-magenta focus:ring-1 focus:ring-suno-magenta transition"
+          >
+        </div>
+
+        <!-- Artist / Style Prompt / Notes -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Genre / Style Tag
+            </label>
+            <select id="track-genre-input" class="w-full bg-studio-950 text-sm text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-suno-magenta transition">
+              <option value="Cyberpunk / Synth">Cyberpunk / Synth</option>
+              <option value="Lo-Fi / Chill">Lo-Fi / Chill</option>
+              <option value="Rock / Metal">Rock / Metal</option>
+              <option value="EDM / Dance">EDM / Dance</option>
+              <option value="Pop / Acoustic">Pop / Acoustic</option>
+              <option value="Hip-Hop / R&B">Hip-Hop / R&B</option>
+              <option value="Cinematic / Ambient">Cinematic / Ambient</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Creator / Model Tag
+            </label>
+            <input 
+              type="text" 
+              id="track-artist-input" 
+              placeholder="e.g. Suno v3.5 / SynthWaveGuy" 
+              class="w-full bg-studio-950 text-sm text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-suno-magenta focus:ring-1 focus:ring-suno-magenta transition"
+            >
+          </div>
+        </div>
+
+        <!-- Prompt or Lyrics Snippet (Optional) -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            Prompt / Lyrics Snippet <span class="text-slate-500 font-normal">(Optional)</span>
+          </label>
+          <input 
+            type="text" 
+            id="track-prompt-input" 
+            placeholder="e.g. 80s analog synthesizers, punchy drums, melancholic arpeggio..." 
+            class="w-full bg-studio-950 text-sm text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-suno-magenta focus:ring-1 focus:ring-suno-magenta transition"
+          >
+        </div>
+
+        <!-- Embed Preview Box in Modal -->
+        <div id="embed-preview-wrapper" class="hidden">
+          <label class="block text-[11px] font-semibold uppercase tracking-wider text-emerald-400 mb-1">
+            Detected Player Preview
+          </label>
+          <div id="embed-preview-box" class="rounded-xl overflow-hidden border border-slate-700 bg-studio-950/80 p-1"></div>
+        </div>
+
+        <!-- Form Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-3">
+          <button type="button" id="cancel-modal-btn" class="px-4 py-2.5 text-xs sm:text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-studio-800 rounded-xl transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2.5 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-suno-magenta to-suno-violet hover:opacity-95 rounded-xl transition shadow-glow-magenta flex items-center gap-2">
+            <i class="ph-bold ph-plus-circle"></i>
+            Save to Library
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 ease-out pointer-events-none">
+    <div class="flex items-center space-x-3 px-4 py-3 rounded-xl bg-studio-800 border border-slate-700 text-white shadow-2xl">
+      <i id="toast-icon" class="ph-bold ph-check-circle text-emerald-400 text-lg"></i>
+      <span id="toast-message" class="text-xs sm:text-sm font-medium">Notification message</span>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // Storage Key
+    const STORAGE_KEY = 'suno_soundvault_tracks_v1';
+
+    // Demo Tracks Seed Data
+    const SAMPLE_TRACKS = [
+      {
+        id: 'sample-1',
+        title: 'Midnight Neon Highway',
+        artist: 'Suno v3.5',
+        genre: 'Cyberpunk / Synth',
+        prompt: '1984 retro wave synth, driving bass, retro drums, nostalgic lead',
+        // Suno embeds work via https://suno.com/embed/[song-id]
+        embedSrc: 'https://suno.com/embed/8e9d505a-8b65-4f76-90bf-c75c82a22510',
+        favorite: true,
+        createdAt: Date.now() - 3600000 * 24
+      },
+      {
+        id: 'sample-2',
+        title: 'Autumn Rain Coffee',
+        artist: 'ChilledMind',
+        genre: 'Lo-Fi / Chill',
+        prompt: 'Warm Rhodes piano, vinyl crackle, slow tempo chillhop beat with trumpet',
+        embedSrc: 'https://suno.com/embed/28906956-f04b-4fc1-b0db-6e695d820dc7',
+        favorite: false,
+        createdAt: Date.now() - 3600000 * 12
+      },
+      {
+        id: 'sample-3',
+        title: 'Solar Wind Odyssey',
+        artist: 'DeepCosmos',
+        genre: 'Cinematic / Ambient',
+        prompt: 'Orchestral hybrid, sweeping synthesizers, deep space cinematic soundtrack',
+        embedSrc: 'https://suno.com/embed/b0593b49-b0c6-43f2-8954-c9635c0293da',
+        favorite: true,
+        createdAt: Date.now() - 3600000 * 4
+      }
+    ];
+
+    // App State
+    let library = [];
+    let activeFilterFavorites = false;
+
+    // Toast helper
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMsg.textContent = message;
+      if (type === 'success') {
+        toastIcon.className = 'ph-bold ph-check-circle text-emerald-400 text-lg';
+      } else if (type === 'error') {
+        toastIcon.className = 'ph-bold ph-warning-circle text-rose-500 text-lg';
+      } else {
+        toastIcon.className = 'ph-bold ph-info text-suno-cyan text-lg';
+      }
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 2800);
+    }
+
+    // Embed URL Sanitizer & Parser
+    // Accepts raw Suno iframe HTML, suno.com/song/UUID, or suno.com/embed/UUID
+    function parseSunoEmbed(input) {
+      if (!input || typeof input !== 'string') return null;
+      const trimmed = input.trim();
+
+      // Case 1: Raw iframe code: extract src
+      const iframeSrcMatch = trimmed.match(/<iframe.*?src=["'](.*?)["']/i);
+      if (iframeSrcMatch && iframeSrcMatch[1]) {
+        return sanitizeSunoUrl(iframeSrcMatch[1]);
+      }
+
+      // Case 2: Direct URL string (e.g., https://suno.com/song/xxx or https://suno.com/embed/xxx)
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return sanitizeSunoUrl(trimmed);
+      }
+
+      // Case 3: Just the UUID
+      const uuidMatch = trimmed.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+      if (uuidMatch) {
+        return `https://suno.com/embed/${uuidMatch[0]}`;
+      }
+
+      return null;
+    }
+
+    // Ensure URL translates to the embeddable Suno player endpoint
+    function sanitizeSunoUrl(rawUrl) {
+      try {
+        const parsed = new URL(rawUrl);
+        // Replace /song/ with /embed/ if present
+        let pathname = parsed.pathname;
+        if (pathname.includes('/song/')) {
+          pathname = pathname.replace('/song/', '/embed/');
+        } else if (!pathname.includes('/embed/')) {
+          // If it's a UUID path like /UUID
+          const uuidMatch = pathname.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+          if (uuidMatch) {
+            pathname = `/embed/${uuidMatch[1]}`;
+          }
+        }
+        return `https://suno.com${pathname}`;
+      } catch (e) {
+        // Fallback simple regex
+        const uuidMatch = rawUrl.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+        if (uuidMatch) {
+          return `https://suno.com/embed/${uuidMatch[0]}`;
+        }
+        return null;
+      }
+    }
+
+    // Local Storage Management
+    function loadLibrary() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          library = JSON.parse(stored);
+        } else {
+          // First time visitor: pre-load sample demo tracks
+          library = [...SAMPLE_TRACKS];
+          saveLibrary();
+        }
+      } catch (e) {
+        console.error("Storage error:", e);
+        library = [...SAMPLE_TRACKS];
+      }
+      render();
+    }
+
+    function saveLibrary() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+      } catch (e) {
+        console.error("Failed to write to localStorage:", e);
+      }
+    }
+
+    // Add Track
+    function addTrack(trackData) {
+      library.unshift(trackData);
+      saveLibrary();
+      render();
+      showToast(`Added "${trackData.title}" to library`);
+    }
+
+    // Remove Track
+    function deleteTrack(id) {
+      const track = library.find(t => t.id === id);
+      const name = track ? track.title : 'Track';
+      library = library.filter(t => t.id !== id);
+      saveLibrary();
+      render();
+      showToast(`Removed "${name}"`, 'info');
+    }
+
+    // Toggle Favorite
+    function toggleFavorite(id) {
+      const track = library.find(t => t.id === id);
+      if (track) {
+        track.favorite = !track.favorite;
+        saveLibrary();
+        render();
+        showToast(track.favorite ? 'Added to favorites' : 'Removed from favorites');
+      }
+    }
+
+    // Load Sample Demo Tracks
+    function loadSampleTracks() {
+      // Add only non-existing ones
+      let addedCount = 0;
+      SAMPLE_TRACKS.forEach(sample => {
+        if (!library.some(t => t.embedSrc === sample.embedSrc)) {
+          library.push({ ...sample, id: 'sample-' + Date.now() + Math.random().toString(36).substring(2, 6) });
+          addedCount++;
+        }
+      });
+      saveLibrary();
+      render();
+      showToast(addedCount > 0 ? `Loaded ${addedCount} sample tracks` : 'Sample tracks already loaded');
+    }
+
+    // Render App
+    function render() {
+      const grid = document.getElementById('tracks-grid');
+      const emptyState = document.getElementById('empty-state');
+      const totalCountEl = document.getElementById('metric-total-tracks');
+      const favCountEl = document.getElementById('metric-favorite-tracks');
+      const clearBtn = document.getElementById('clear-filters-btn');
+
+      // Update metrics
+      totalCountEl.textContent = library.length;
+      favCountEl.textContent = library.filter(t => t.favorite).length;
+
+      // Filter & Sort
+      const searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+      const genreFilter = document.getElementById('genre-filter').value;
+      const sortFilter = document.getElementById('sort-filter').value;
+
+      let filtered = [...library];
+
+      // Favorite filter
+      if (activeFilterFavorites) {
+        filtered = filtered.filter(t => t.favorite);
+      }
+
+      // Genre filter
+      if (genreFilter !== 'ALL') {
+        filtered = filtered.filter(t => t.genre === genreFilter);
+      }
+
+      // Search Query
+      if (searchQuery) {
+        filtered = filtered.filter(t => 
+          (t.title && t.title.toLowerCase().includes(searchQuery)) ||
+          (t.artist && t.artist.toLowerCase().includes(searchQuery)) ||
+          (t.genre && t.genre.toLowerCase().includes(searchQuery)) ||
+          (t.prompt && t.prompt.toLowerCase().includes(searchQuery))
+        );
+      }
+
+      // Sort
+      if (sortFilter === 'newest') {
+        filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      } else if (sortFilter === 'oldest') {
+        filtered.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      } else if (sortFilter === 'title') {
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+      }
+
+      // Show clear filters if any applied
+      if (activeFilterFavorites || genreFilter !== 'ALL' || searchQuery) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+
+      // Render cards or empty
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+
+      grid.innerHTML = filtered.map(track => {
+        const favIconClass = track.favorite ? 'ph-fill ph-heart text-rose-500' : 'ph-bold ph-heart text-slate-400 hover:text-rose-400';
+        const formattedDate = new Date(track.createdAt || Date.now()).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        });
+
+        return `
+          <div class="glass-card rounded-2xl p-4 flex flex-col justify-between group shadow-card-hover border border-slate-800 hover:border-suno-magenta/40">
+            <!-- Card Header: Title & Actions -->
+            <div class="mb-3">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-studio-800 text-slate-300 border border-slate-700">
+                      ${track.genre || 'Other'}
+                    </span>
+                    <span class="text-[10px] text-slate-500">${formattedDate}</span>
+                  </div>
+                  <h3 class="font-bold text-white text-base truncate title="${escapeHtml(track.title)}">
+                    ${escapeHtml(track.title)}
+                  </h3>
+                  <p class="text-xs text-suno-cyan truncate font-medium">
+                    ${escapeHtml(track.artist || 'Suno Generation')}
+                  </p>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex items-center space-x-1 shrink-0">
+                  <button 
+                    onclick="toggleFavorite('${track.id}')"
+                    title="${track.favorite ? 'Remove Favorite' : 'Add to Favorites'}"
+                    class="p-2 rounded-lg bg-studio-900/60 hover:bg-studio-800 transition"
+                  >
+                    <i class="${favIconClass} text-base"></i>
+                  </button>
+
+                  <button 
+                    onclick="copyShareEmbed('${track.embedSrc}')"
+                    title="Copy Embed URL"
+                    class="p-2 rounded-lg bg-studio-900/60 hover:bg-studio-800 text-slate-400 hover:text-white transition"
+                  >
+                    <i class="ph-bold ph-share-network text-base"></i>
+                  </button>
+
+                  <button 
+                    onclick="deleteTrack('${track.id}')"
+                    title="Delete track"
+                    class="p-2 rounded-lg bg-studio-900/60 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition"
+                  >
+                    <i class="ph-bold ph-trash text-base"></i>
+                  </button>
+                </div>
+              </div>
+
+              ${track.prompt ? `
+                <div class="mt-2 text-[11px] text-slate-400 line-clamp-1 italic bg-studio-900/40 px-2 py-1 rounded-md border border-slate-800/60" title="${escapeHtml(track.prompt)}">
+                  "${escapeHtml(track.prompt)}"
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Embedded Suno Player Iframe -->
+            <div class="suno-iframe-container border border-slate-800/90 shadow-inner mt-1">
+              <iframe 
+                src="${track.embedSrc}" 
+                title="${escapeHtml(track.title)}"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen"
+                loading="lazy"
+              ></iframe>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Helper: Escaping HTML
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Copy embed link fallback
+    function copyShareEmbed(url) {
+      const tempInput = document.createElement('input');
+      tempInput.value = `<iframe width="100%" height="152" src="${url}" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen"></iframe>`;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        showToast('Iframe code copied to clipboard!');
+      } catch (err) {
+        showToast('Failed to copy', 'error');
+      }
+      document.body.removeChild(tempInput);
+    }
+
+    // Interactive Modal Handlers
+    const modal = document.getElementById('add-modal');
+    const openModalBtn = document.getElementById('open-modal-btn');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelModalBtn = document.getElementById('cancel-modal-btn');
+    const addTrackForm = document.getElementById('add-track-form');
+    const embedInput = document.getElementById('track-embed-input');
+    const previewWrapper = document.getElementById('embed-preview-wrapper');
+    const previewBox = document.getElementById('embed-preview-box');
+
+    function openModal() {
+      modal.classList.remove('hidden');
+      embedInput.focus();
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      addTrackForm.reset();
+      previewWrapper.classList.add('hidden');
+      previewBox.innerHTML = '';
+    }
+
+    openModalBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Live preview parsing on textarea input
+    embedInput.addEventListener('input', () => {
+      const val = embedInput.value.trim();
+      const parsedSrc = parseSunoEmbed(val);
+      if (parsedSrc) {
+        previewWrapper.classList.remove('hidden');
+        previewBox.innerHTML = `
+          <div class="suno-iframe-container">
+            <iframe src="${parsedSrc}" allow="autoplay; encrypted-media"></iframe>
+          </div>
+        `;
+      } else {
+        previewWrapper.classList.add('hidden');
+        previewBox.innerHTML = '';
+      }
+    });
+
+    // Paste sample snippet button
+    document.getElementById('paste-sample-code').addEventListener('click', () => {
+      const sampleEmbed = '<iframe width="100%" height="152" src="https://suno.com/embed/8e9d505a-8b65-4f76-90bf-c75c82a22510" frameborder="0" allowfullscreen></iframe>';
+      embedInput.value = sampleEmbed;
+      document.getElementById('track-title-input').value = 'Neon Cyber City Run';
+      document.getElementById('track-artist-input').value = 'SynthStudio';
+      document.getElementById('track-genre-input').value = 'Cyberpunk / Synth';
+      document.getElementById('track-prompt-input').value = 'Dark synthwave, 80s drums, energetic neon synth lead';
+      embedInput.dispatchEvent(new Event('input'));
+    });
+
+    // Form submission
+    addTrackForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const rawEmbed = embedInput.value.trim();
+      const parsedSrc = parseSunoEmbed(rawEmbed);
+
+      if (!parsedSrc) {
+        showToast('Please enter a valid Suno iframe or song link', 'error');
+        embedInput.focus();
+        return;
+      }
+
+      const newTrack = {
+        id: 'track-' + Date.now(),
+        title: document.getElementById('track-title-input').value.trim() || 'Untitled Track',
+        artist: document.getElementById('track-artist-input').value.trim() || 'Suno AI',
+        genre: document.getElementById('track-genre-input').value,
+        prompt: document.getElementById('track-prompt-input').value.trim(),
+        embedSrc: parsedSrc,
+        favorite: false,
+        createdAt: Date.now()
+      };
+
+      addTrack(newTrack);
+      closeModal();
+    });
+
+    // Search and Filter Listeners
+    document.getElementById('search-input').addEventListener('input', render);
+    document.getElementById('genre-filter').addEventListener('change', render);
+    document.getElementById('sort-filter').addEventListener('change', render);
+
+    // Favorite Filter Toggle
+    const favFilterBtn = document.getElementById('filter-favorites-btn');
+    const favFilterIcon = document.getElementById('fav-filter-icon');
+
+    favFilterBtn.addEventListener('click', () => {
+      activeFilterFavorites = !activeFilterFavorites;
+      if (activeFilterFavorites) {
+        favFilterBtn.classList.add('border-rose-500/60', 'bg-rose-500/10', 'text-rose-400');
+        favFilterIcon.className = 'ph-fill ph-heart text-rose-500';
+      } else {
+        favFilterBtn.classList.remove('border-rose-500/60', 'bg-rose-500/10', 'text-rose-400');
+        favFilterIcon.className = 'ph-bold ph-heart text-slate-400';
+      }
+      render();
+    });
+
+    // Reset filters
+    document.getElementById('clear-filters-btn').addEventListener('click', () => {
+      document.getElementById('search-input').value = '';
+      document.getElementById('genre-filter').value = 'ALL';
+      activeFilterFavorites = false;
+      favFilterBtn.classList.remove('border-rose-500/60', 'bg-rose-500/10', 'text-rose-400');
+      favFilterIcon.className = 'ph-bold ph-heart text-slate-400';
+      render();
+    });
+
+    // Quick demo button
+    document.getElementById('quick-demo-btn').addEventListener('click', loadSampleTracks);
+
+    // Initial Load
+    window.onload = function () {
+      loadLibrary();
+    };
+  </script>
+</body>
+</html>
